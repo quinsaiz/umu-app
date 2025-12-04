@@ -33,7 +33,10 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
 git clone https://github.com/quinsaiz/umu-app.git
 cd umu-app
 ```
-
+### Give permission to execute the file
+```bash
+chmod +x ./install
+```
 ### Install
 ```bash
 ./install.sh
