@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EXE="${1:-}"
+[[ -f "$EXE" ]] || { echo "Error: no valid .exe"; exit 1; }
+shift
+
+NAME="" ICON="" PREFIX="" PROTON="" GAMEID="" STORE="" ARGS=()
+
+while (( $# )); do
+    case "$1" in
+        -n|--name)      NAME="$2";              shift 2 ;;
+        -i|--icon)      ICON="${2/#\~/$HOME}";  shift 2 ;;
+        -w|--wineprefix|--prefix) PREFIX="${2/#\~/$HOME}"; shift 2 ;;
+        -p|--proton)    PROTON="${2/#\~/$HOME}"; shift 2 ;;
+        -g|--gameid)    GAMEID="$2";            shift 2 ;;
+        -s|--store)     STORE="$2";             shift 2 ;;
+        -a|--launch_args)
+            IFS='|' read -ra raw <<< "$2"
+            for arg in "${raw[@]}"; do
+                ARGS+=("\"$(printf '%s' "$arg" | sed 's/"/\\"/g')\"")
+            done
+            shift 2 ;;
+        -h|--help)
+            cat <<EOF
+umu-app /path/to/game.exe [options]
+  -n --name NAME          App name
+  -i --icon PATH          Custom icon
+  -w --wineprefix PATH    Wine prefix (default ~/Prefix)
+  -p --proton PATH        Proton path (default GE-Proton in Steam compatibilitytools.d)
+  -g --gameid ID          UMU game_id (optional)
+  -s --store NAME         Store (steam/gog/egs/)
+  -a --launch_args "a|b"  Launch arguments
+EOF
+            exit 0 ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+EXE_DIR="$(dirname "$EXE")"
+EXE_BASE="$(basename "$EXE" .exe)"
+NAME="${NAME:-$EXE_BASE}"
+
+PREFIX="${PREFIX:-$HOME/Prefix}"
+PROTON="${PROTON:-$(ls -d $HOME/.local/share/Steam/compatibilitytools.d/GE-Proton* | sort -V | tail -n1)}"
+
+TOML="$EXE_DIR/$EXE_BASE.toml"
+DESKTOP="$HOME/.local/share/applications/$NAME.desktop"
+ICON_DIR="$HOME/.local/share/icons/umu-app"
+ICON_PATH="$ICON_DIR/$EXE_BASE.png"
+mkdir -p "$ICON_DIR"
+
+# === Ensure PREFIX and PROTON ===
+if ! ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
+    echo "Downloading GE-Proton..."
+
+    PROTONPATH=GE-Proton \
+    umu-run "" >/dev/null 2>&1 || true
+
+    echo "  PROTON : $(ls -d $HOME/.local/share/Steam/compatibilitytools.d/GE-Proton* | sort -V | tail -n1)"
+fi
+
+if [[ ! -d "$PREFIX" ]]; then
+    echo "Providing PREFIX..."
+
+    WINEPREFIX="$PREFIX" \
+    PROTONPATH=GE-Proton \
+    umu-run "" >/dev/null 2>&1 || true
+
+    echo "  PREFIX : $PREFIX"
+fi
+
+# === .toml ===
+{
+    printf '[umu]\n'
+    printf 'prefix = "%s"\n' "$PREFIX"
+    printf 'proton = "%s"\n' "$PROTON"
+    [[ -n "$GAMEID" ]] && printf 'game_id = "%s"\n' "$GAMEID"
+    printf 'exe = "%s"\n' "$EXE"
+    [[ -n "$STORE" ]] && printf 'store = "%s"\n' "$STORE"
+    (( ${#ARGS[@]} )) && printf 'launch_args = [%s]\n' "$(IFS=,; echo "${ARGS[*]}")"
+} > "$TOML"
+
+# === Icon ===
+if [[ -n "$ICON" && -f "$ICON" ]]; then
+    command -v magick >/dev/null 2>&1 && \
+        magick "$ICON" -strip -resize 128x128 "$ICON_PATH" || \
+        cp "$ICON" "$ICON_PATH"
+elif command -v wrestool >/dev/null 2>&1 && command -v icotool >/dev/null 2>&1; then
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    wrestool -x -t14 "$EXE" --output="$tmp/" >/dev/null 2>&1 && \
+    icotool -x --output="$tmp/" "$tmp/"*.ico >/dev/null 2>&1 && \
+    [[ -n $(ls "$tmp"/*.png 2>/dev/null) ]] && (
+        command -v magick >/dev/null 2>&1 && \
+            magick "$tmp"/*.png -strip -resize 128x128 "$ICON_PATH" || \
+            cp "$(ls -S "$tmp"/*.png | head -1)" "$ICON_PATH"
+    )
+fi
+
+# === .desktop ===
+{
+    printf '[Desktop Entry]\n'
+    printf 'Name=%s\n' "$NAME"
+    printf 'Exec=umu-run --config "%s"\n' "$TOML"
+    printf 'Type=Application\n'
+    printf 'Categories=Games;Wine;\n'
+    printf 'Terminal=false\n'
+    [[ -f "$ICON_PATH" ]] && printf 'Icon=%s\n' "$ICON_PATH"
+} > "$DESKTOP"
+
+# === Result ===
+echo "Created:"
+echo "  Config : $TOML"
+echo "  Desktop: $DESKTOP"
+[[ -f "$ICON_PATH" ]] && echo "  Icon   : $ICON_PATH"
