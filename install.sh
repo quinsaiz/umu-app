@@ -40,7 +40,7 @@ echo "umu-app installed → $SCRIPT_DEST"
     "[Desktop Entry]" \
     "Name=UMU Launch" \
     "Comment=Launch Windows applications via Wine/Proton" \
-    "Exec=env WINEPREFIX=\$HOME/Prefix PROTONPATH=GE-Proton umu-run %f" \
+    "Exec=env WINEPREFIX=${HOME}/Prefix PROTONPATH=GE-Proton umu-run %f" \
     "Type=Application" \
     "Terminal=false" \
     "Icon=wine" \
