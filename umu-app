@@ -1,54 +1,161 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXE="${1:-}"
-[[ -f "$EXE" ]] || { echo "Error: no valid .exe"; exit 1; }
+# === Info ===
+help() {
+    cat <<EOF
+umu-app /path/to/game.exe [options]
+
+Options:
+  -n, --name                App name. Can contain spaces (use quotes):
+                              --name="Skyrim Special Edition"
+  -i, --icon                Path to a custom icon (.png, .svg, etc.)
+                              --icon=/home/user/icons/game.png
+  -w, --prefix              Wine prefix for this app (default: ~/Prefix)
+                              --prefix=/home/user/Prefix
+  -p, --proton              Proton/GE-Proton for running the app (default: latest GE-Proton in Steam compatibilitytools.d)
+                              --proton=/home/user/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
+  -g, --gameid              UMU game_id (optional)
+                              --gameid=12345
+  -s, --store               Game store (steam/gog/egs)
+                              --store=egs
+  -a, --launch_args         Game launch arguments, separated by '|'
+                              --launch_args="--fullscreen|--novid"
+  -e, --exec                Additional commands/arguments before umu-run in Exec
+                              --exec="mangohud gamemode"
+  -h, --help                Show this help message
+
+Usage examples:
+  umu-app ~/Game/gta_sa.exe   --name="GTA San Andreas"
+                              --icon=/home/Downloads/GTA_HQ.png
+                              --prefix=~/Prefix
+                              --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
+                              --launch_args="--fullscreen|--novid"
+                              --exec="mangohud gamemode ENABLE_VKBASALT=1"
+
+Result:
+  1. Creates a TOML config:
+       ~/Game/gta_sa.toml
+     Containing all game parameters (prefix, proton, exe, store, launch_args, game_id)
+  2. Creates a .desktop file:
+       ~/.local/share/applications/gta_sa.desktop
+     With the correct Exec command (can be launched via GUI)
+  3. Creates an icon (if provided or extracted from exe):
+       ~/.local/share/icons/umu-app/gta_sa.png
+EOF
+}
+
+if [[ $# -eq 0 || "$1" == "-h" || "$1" == "--help" ]]; then
+    help
+
+    exit 0
+fi
+
+# === Parse options ===
+FILE="${1:-}"
+
+if [[ ! -f "$FILE" ]]; then
+    echo "Error: File not found or not a valid path: '$FILE'"
+    
+    exit 1
+
+elif ! [[ "$FILE" =~ \.(exe|msi|bat|cmd)$ ]]; then
+    echo "Error: File '$FILE' must have one of the supported extensions: .exe, .msi, .bat, or .cmd"
+    
+    exit 1
+fi
+
 shift
 
-NAME="" ICON="" PREFIX="" PROTON="" GAMEID="" STORE="" ARGS=()
+NAME="" ICON="" PREFIX="" PROTON="" GAMEID="" STORE="" ARGS=() EXEC_ARGS=()
 
 while (( $# )); do
+    if [[ "$1" == --*=* ]]; then
+        KEY="${1%%=*}"
+        VALUE="${1#*=}"
+        VALUE="${VALUE/#\~/$HOME}"
+
+        case "$KEY" in
+            --name) NAME="$VALUE" ;;
+            --icon) ICON="$VALUE" ;;
+            --prefix) PREFIX="$VALUE" ;;
+            --proton) PROTON="$VALUE" ;;
+            --gameid) GAMEID="$VALUE" ;;
+            --store) STORE="$VALUE" ;;
+            --launch_args)
+                IFS='|' read -ra raw <<< "$VALUE"
+                for arg in "${raw[@]}"; do
+                    ARGS+=("\"$arg\"")
+                done
+                ;;
+            --exec) read -ra EXEC_ARGS <<< "$VALUE" ;;
+            --help) help; exit 0 ;;
+            *) echo "Unknown option: $KEY"; exit 1 ;;
+        esac
+
+        shift
+
+        continue
+    fi
+
     case "$1" in
-        -n|--name)      NAME="$2";              shift 2 ;;
-        -i|--icon)      ICON="${2/#\~/$HOME}";  shift 2 ;;
-        -w|--wineprefix|--prefix) PREFIX="${2/#\~/$HOME}"; shift 2 ;;
-        -p|--proton)    PROTON="${2/#\~/$HOME}"; shift 2 ;;
-        -g|--gameid)    GAMEID="$2";            shift 2 ;;
-        -s|--store)     STORE="$2";             shift 2 ;;
+        -n|--name)
+            NAME="$2"; shift 2 ;;
+        -i|--icon)
+            ICON="${2/#\~/$HOME}"; shift 2 ;;
+        -w|--prefix)
+            PREFIX="${2/#\~/$HOME}"; shift 2 ;;
+        -p|--proton)
+            PROTON="${2/#\~/$HOME}"; shift 2 ;;
+        -g|--gameid)
+            GAMEID="$2"; shift 2 ;;
+        -s|--store)
+            STORE="$2"; shift 2 ;;
         -a|--launch_args)
             IFS='|' read -ra raw <<< "$2"
             for arg in "${raw[@]}"; do
-                ARGS+=("\"$(printf '%s' "$arg" | sed 's/"/\\"/g')\"")
+                ARGS+=("\"$arg\"")
             done
+
             shift 2 ;;
+        -e|--exec)
+            if [[ "$2" ]]; then
+                read -ra EXEC_ARGS <<< "$2"
+                
+                shift 2
+            else
+                echo "Error: -e/--exec requires arguments in quotes"
+                
+                exit 1
+            fi
+            ;;
         -h|--help)
-            cat <<EOF
-umu-app /path/to/game.exe [options]
-  -n --name NAME          App name
-  -i --icon PATH          Custom icon
-  -w --wineprefix PATH    Wine prefix (default ~/Prefix)
-  -p --proton PATH        Proton path (default GE-Proton in Steam compatibilitytools.d)
-  -g --gameid ID          UMU game_id (optional)
-  -s --store NAME         Store (steam/gog/egs/)
-  -a --launch_args "a|b"  Launch arguments
-EOF
-            exit 0 ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
+            help; exit 0 ;;
+        --)
+            shift
+
+            break ;;
+        *)
+            echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
-EXE_DIR="$(dirname "$EXE")"
-EXE_BASE="$(basename "$EXE" .exe)"
-NAME="${NAME:-$EXE_BASE}"
+FILE_DIR="$(dirname "$FILE")"
+FILE_BASE="$(basename "$FILE")"
+FILE_BASE="${FILE_BASE%.*}"
+NAME="${NAME:-$FILE_BASE}"
 
 PREFIX="${PREFIX:-$HOME/Prefix}"
 PROTON="${PROTON:-$(ls -d $HOME/.local/share/Steam/compatibilitytools.d/GE-Proton* | sort -V | tail -n1)}"
 
-TOML="$EXE_DIR/$EXE_BASE.toml"
+TOML="$FILE_DIR/$NAME.toml"
 DESKTOP="$HOME/.local/share/applications/$NAME.desktop"
 ICON_DIR="$HOME/.local/share/icons/umu-app"
-ICON_PATH="$ICON_DIR/$EXE_BASE.png"
+ICON_PATH="$ICON_DIR/$NAME.png"
+
 mkdir -p "$ICON_DIR"
+
+EXEC_CMD="env ${EXEC_ARGS[*]} umu-run --config \"$TOML\""
 
 # === Ensure PREFIX and PROTON ===
 if ! ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
@@ -76,7 +183,7 @@ fi
     printf 'prefix = "%s"\n' "$PREFIX"
     printf 'proton = "%s"\n' "$PROTON"
     [[ -n "$GAMEID" ]] && printf 'game_id = "%s"\n' "$GAMEID"
-    printf 'exe = "%s"\n' "$EXE"
+    printf 'exe = "%s"\n' "$FILE"
     [[ -n "$STORE" ]] && printf 'store = "%s"\n' "$STORE"
     (( ${#ARGS[@]} )) && printf 'launch_args = [%s]\n' "$(IFS=,; echo "${ARGS[*]}")"
 } > "$TOML"
@@ -86,22 +193,27 @@ if [[ -n "$ICON" && -f "$ICON" ]]; then
     command -v magick >/dev/null 2>&1 && \
         magick "$ICON" -strip -resize 128x128 "$ICON_PATH" || \
         cp "$ICON" "$ICON_PATH"
+
 elif command -v wrestool >/dev/null 2>&1 && command -v icotool >/dev/null 2>&1; then
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-    wrestool -x -t14 "$EXE" --output="$tmp/" >/dev/null 2>&1 && \
-    icotool -x --output="$tmp/" "$tmp/"*.ico >/dev/null 2>&1 && \
-    [[ -n $(ls "$tmp"/*.png 2>/dev/null) ]] && (
+    
+    wrestool -x -t14 "$FILE" --output="$tmp/" >/dev/null 2>&1 && \
+    icotool -x --output="$tmp/" "$tmp/"*.ico >/dev/null 2>&1
+    
+    BEST_ICON=$(ls -S "$tmp"/*.png 2>/dev/null | head -n1)
+
+    if [[ -n "$BEST_ICON" ]]; then
         command -v magick >/dev/null 2>&1 && \
-            magick "$tmp"/*.png -strip -resize 128x128 "$ICON_PATH" || \
-            cp "$(ls -S "$tmp"/*.png | head -1)" "$ICON_PATH"
-    )
+            magick "$BEST_ICON" -strip -resize 128x128 "$ICON_PATH" || \
+            cp "$BEST_ICON" "$ICON_PATH"
+    fi
 fi
 
 # === .desktop ===
 {
     printf '[Desktop Entry]\n'
     printf 'Name=%s\n' "$NAME"
-    printf 'Exec=umu-run --config "%s"\n' "$TOML"
+    printf 'Exec=%s\n' "$EXEC_CMD"
     printf 'Type=Application\n'
     printf 'Categories=Games;Wine;\n'
     printf 'Terminal=false\n'
@@ -113,3 +225,7 @@ echo "Created:"
 echo "  Config : $TOML"
 echo "  Desktop: $DESKTOP"
 [[ -f "$ICON_PATH" ]] && echo "  Icon   : $ICON_PATH"
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -i "$ICON_PATH" -a "UMU App" "Desktop entry for '$NAME' is ready!"
+fi

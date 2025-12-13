@@ -9,7 +9,7 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
 ## Features
 - Auto-generate **TOML** config.
 - Create **.desktop** launchers in `~/.local/share/applications`.
-- Extract icons from `.exe` (ICO → PNG) or use custom icons.
+- Extract icons from MS-DOS program (ICO → PNG) or use custom icons.
 - Auto-detect latest **GE-Proton**.
 - Auto-create Wine prefix if missing.
 - Supports:
@@ -19,11 +19,11 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
   - Custom Proton.
   - UMU `game_id` (only if use UMU-Proton).
   - Store tag.
-  - Launch args via `"a|b"`.
+  - Create via argsuments.
 
 ## Requirements
 - umu-run — included in [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher).
-- (optional) **wrestool**, **icotool** — for extracting icons.
+- (optional) **icoutils** — for extracting icons.
 - (optional) **ImageMagick** — for resizing/clean PNGs.
 
 ## Installation
@@ -42,14 +42,20 @@ chmod +x ./install
 ./install.sh
 ```
 
+---
+
 ### Uninstall
 ```bash
 ./install.sh --uninstall
 ```
 
-This removes:
-- /usr/local/bin/umu-app
-- ~/.local/share/applications/umu-launch.desktop
+The uninstallation process removes the following files:
+
+* **Main Executable:**
+    - /usr/bin/umu-app
+* **Desktop Launchers:**
+    - ~/.local/share/applications/umu-app.desktop
+    - ~/.local/share/applications/umu-launch.desktop
 
 ## Usage
 
@@ -59,33 +65,27 @@ umu-app /path/to/game.exe
 ```
 
 ### With custom options
-```bash
-umu-app /path/to/game.exe \
-  --name "My Game" \
-  --icon ~/Pictures/game.png \
-  --wineprefix ~/Games/Prefix \
-  --proton ~/.local/share/Steam/compatibilitytools.d/GE-Proton9 \
-  --gameid 12345 \
-  --store egs \
-  --launch_args "a|b"
-```
 
-### What gets created?
-Config: /path/to/game/game.toml
-
-Launcher: ~/.local/share/applications/GameName.desktop
-
-Icon: ~/.local/share/icons/umu-app/game.png
+| Short | Long | Description | Example |
+| :---: | :--- | :--- | :--- |
+| `-n` | `--name` | App name | `--name="Skyrim Special Edition"` |
+| `-i` | `--icon` | Path to a custom icon | `--icon=/home/user/icons/game.png` |
+| `-w` | `--prefix` | Wine prefix (default: ~/Prefix). | `--prefix=/home/user/Prefix` |
+| `-p` | `--proton` | Proton/path (default: latest GE-Proton). | `--proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0` |
+| `-g` | `--gameid` | UMU game\_id (optional). | `--gameid=12345` |
+| `-s` | `--store` | Game store (gog/egs). | `--store=egs` |
+| `-a` | `--launch_args "a\|b"` | Game launch arguments, separated by "\|" | `--launch_args="-fullscreen\|-novid"` |
+| `-e` | `--exec ARGUMENTS` | Additional commands/arguments before `umu-run` in `Exec=`. | `--exec="mangohud gamemode"` |
 
 ### Example
 ```bash
-umu-app ~/Games/Skyrim/SkyrimSE.exe --name Skyrim
+umu-app ~/Games/Skyrim/SkyrimSE.exe --name="Skyrim V SE"
 ```
 
 ### Output:
 ```text
 Created:
-  Config : /home/user/Games/Skyrim/SkyrimSE.toml
-  Desktop: /home/user/.local/share/applications/Skyrim.desktop
-  Icon   : /home/user/.local/share/icons/umu-app/SkyrimSE.png
+  Config : /home/user/Games/Skyrim/Skyrim V SE.toml
+  Desktop: /home/user/.local/share/applications/Skyrim V SE.desktop
+  Icon   : /home/user/.local/share/icons/umu-app/Skyrim V SE.png
 ```
