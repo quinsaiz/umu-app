@@ -63,10 +63,10 @@ sudo chmod +x "$SCRIPT_DEST"
     "NoDisplay=true" \
     "Name=Create a desktop entry" \
     "Comment=Create a desktop entry for a Windows application" \
-    "Exec=env umu-app %f" \
+    "Exec=env umu-app %f --gui" \
     "Type=Application" \
     "Terminal=false" \
-    "Icon=wine" \
+    "Icon=applications-games-symbolic" \
     "MimeType=application/x-ms-dos-executable;application/x-msi;application/x-wine-extension-msp;" \
     "Categories=Games;Emulator;Wine;" \
     "StartupNotify=true"
