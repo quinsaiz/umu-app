@@ -60,7 +60,6 @@ sudo chmod +x "$SCRIPT_DEST"
 {
     printf '%s\n' \
     "[Desktop Entry]" \
-    "NoDisplay=true" \
     "Name=Create a desktop entry" \
     "Comment=Create a desktop entry for a Windows application" \
     "Exec=env umu-app %f --gui" \

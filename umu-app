@@ -30,13 +30,15 @@ Options:
 
 Usage examples:
   umu-app --gui
+
   umu-app ~/Game/gta_sa.exe --gui --name="GTA San Andreas"
-  umu-app ~/Game/gta_sa.exe   --name="GTA San Andreas"
-                              --icon=/home/Downloads/GTA_HQ.png
-                              --prefix=~/Prefix
-                              --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
-                              --launch_args="--fullscreen|--novid"
-                              --exec="mangohud gamemode ENABLE_VKBASALT=1"
+
+  umu-app ~/Game/gta_sa.exe --name="GTA San Andreas"
+                            --icon=/home/Downloads/GTA_HQ.png
+                            --prefix=~/Prefix
+                            --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
+                            --launch_args="--fullscreen|--novid"
+                            --exec="mangohud gamemode ENABLE_VKBASALT=1"
 
 Result:
   1. Creates a TOML config:
@@ -277,7 +279,9 @@ set -- "${ORIGINAL_ARGS[@]}"
 
 if $GUI_MODE; then
     if ! command -v yad >/dev/null 2>&1; then
-        echo "Error: YAD is not installed. Please install it first."
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send -i "applications-games-symbolic" -a "UMU App" "YAD is not installed" "Please install it first."
+        fi
         exit 1
     fi
     
