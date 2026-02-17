@@ -48,7 +48,7 @@ sudo chmod +x "$SCRIPT_DEST"
     "NoDisplay=true" \
     "Name=Launch Windows app" \
     "Comment=Launch Windows applications via Wine/Proton" \
-    "Exec=env WINEPREFIX=${HOME}/Prefix PROTONPATH=GE-Proton umu-run %f" \
+    "Exec=bash -c 'PROTONPATH=\$(ls -1d \$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton* 2>/dev/null | sort -V | tail -1); PROTONPATH=\${PROTONPATH:-GE-Proton} WINEPREFIX=\$HOME/Prefix umu-run \"\$@\"' -- %F" \
     "Type=Application" \
     "Terminal=false" \
     "Icon=wine" \

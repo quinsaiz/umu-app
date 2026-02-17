@@ -9,46 +9,47 @@ help() {
 umu-app /path/to/game.exe [options]
 
 Options:
-  --gui                     Launch graphical interface
-  -n, --name                App name. Can contain spaces (use quotes):
-                              --name="Skyrim Special Edition"
-  -i, --icon                Path to a custom icon (.png, .svg, etc.)
-                              --icon=/home/user/icons/game.png
-  -w, --prefix              Wine prefix for this app (default: ~/Prefix)
-                              --prefix=/home/user/Prefix
-  -p, --proton              Proton/GE-Proton for running the app (default: latest GE-Proton in Steam compatibilitytools.d)
-                              --proton=/home/user/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
-  -g, --gameid              UMU game_id (optional)
-                              --gameid=12345
-  -s, --store               Game store (steam/gog/egs/battlenet/ea/humble/itchio/ubisoft/zoomplatform)
-                              --store=egs
-  -a, --launch_args         Game launch arguments, separated by '|'
-                              --launch_args="--fullscreen|--novid"
-  -e, --exec                Additional commands/arguments before umu-run in Exec
-                              --exec="mangohud gamemode"
-  -h, --help                Show this help message
+    --gui                     Launch graphical interface
+    -u, --update-proton       Download latest GE-Proton and exit
+    -n, --name                App name. Can contain spaces (use quotes):
+                                --name="Skyrim Special Edition"
+    -i, --icon                Path to a custom icon (.png, .svg, etc.)
+                                --icon=/home/user/icons/game.png
+    -w, --prefix              Wine prefix for this app (default: ~/Prefix)
+                                --prefix=/home/user/Prefix
+    -p, --proton              Proton/GE-Proton for running the app (default: latest GE-Proton in Steam compatibilitytools.d)
+                                --proton=/home/user/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
+    -g, --gameid              UMU game_id (optional)
+                                --gameid=12345
+    -s, --store               Game store (steam/gog/egs/battlenet/ea/humble/itchio/ubisoft/zoomplatform)
+                                --store=egs
+    -a, --launch_args         Game launch arguments, separated by '|'
+                                --launch_args="--fullscreen|--novid"
+    -e, --exec                Additional commands/arguments before umu-run in Exec
+                                --exec="mangohud gamemode"
+    -h, --help                Show this help message
 
 Usage examples:
-  umu-app --gui
+    umu-app --gui
 
-  umu-app ~/Game/gta_sa.exe --gui --name="GTA San Andreas"
+    umu-app ~/Game/gta_sa.exe   --gui --name="GTA San Andreas"
 
-  umu-app ~/Game/gta_sa.exe --name="GTA San Andreas"
-                            --icon=/home/Downloads/GTA_HQ.png
-                            --prefix=~/Prefix
-                            --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
-                            --launch_args="--fullscreen|--novid"
-                            --exec="mangohud gamemode ENABLE_VKBASALT=1"
+    umu-app ~/Game/gta_sa.exe   --name="GTA San Andreas"
+                                --icon=/home/Downloads/GTA_HQ.png
+                                --prefix=~/Prefix
+                                --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
+                                --launch_args="--fullscreen|--novid"
+                                --exec="mangohud gamemode ENABLE_VKBASALT=1"
 
 Result:
-  1. Creates a TOML config:
-       ~/Game/gta_sa.toml
-     Containing all game parameters (prefix, proton, exe, store, launch_args, game_id)
-  2. Creates a .desktop file:
-       ~/.local/share/applications/gta_sa.desktop
-     With the correct Exec command (can be launched via GUI)
-  3. Creates an icon (if provided or extracted from exe):
-       ~/.local/share/icons/umu-app/gta_sa.png
+1. Creates a TOML config:
+    ~/Game/gta_sa.toml
+    Containing all game parameters (prefix, proton, exe, store, launch_args, game_id)
+2. Creates a .desktop file:
+    ~/.local/share/applications/gta_sa.desktop
+    With the correct Exec command (can be launched via GUI)
+3. Creates an icon (if provided or extracted from exe):
+    ~/.local/share/icons/umu-app/gta_sa.png
 EOF
 }
 
@@ -229,6 +230,13 @@ while [[ $# -gt 0 ]]; do
         --gui)
             GUI_MODE=true
             shift
+            ;;
+        -u|--update-proton)
+            echo "Downloading latest GE-Proton..."
+            PROTONPATH=GE-Proton umu-run "" >/dev/null 2>&1 || true
+            PROTON=$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* 2>/dev/null | sort -V | tail -n1)
+            [[ -n "$PROTON" ]] && echo "  PROTON : $PROTON"
+            exit 0
             ;;
         -h|--help)
             help
