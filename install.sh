@@ -55,7 +55,7 @@ install_deps() {
 	success "Installed: ${missing[*]}"
 
 	if command -v notify-send >/dev/null 2>&1; then
-		notify-send -i "applications-games-symbolic" -a "UMU App" "Dependencies installed" "${missing[*]}"
+		notify-send -i "applications-games" -a "UMU App" "Dependencies installed" "${missing[*]}"
 	fi
 }
 
@@ -127,7 +127,7 @@ sudo chmod +x "$SCRIPT_DEST"
 		"Exec=env umu-app %f --gui" \
 		"Type=Application" \
 		"Terminal=false" \
-		"Icon=applications-games-symbolic" \
+		"Icon=applications-games" \
 		"MimeType=application/x-ms-dos-executable;application/x-msi;application/x-wine-extension-msp;" \
 		"Categories=Games;Emulator;Wine;" \
 		"StartupNotify=true"
@@ -142,5 +142,5 @@ info "  Launcher   : $DESKTOP_LAUNCH"
 info "  Application: $DESKTOP_APP"
 
 if command -v notify-send >/dev/null 2>&1; then
-	notify-send -i "applications-games-symbolic" -a "UMU App" "Installation complete" "Use 'UMU Application' to create desktop entries for Windows apps."
+	notify-send -i "applications-games" -a "UMU App" "Installation complete" "Use 'UMU Application' to create desktop entries for Windows apps."
 fi
