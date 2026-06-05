@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ORIGINAL_ARGS=("$@")
-
 # === Info ===
 help() {
-    cat <<EOF
+	cat <<EOF
 umu-app /path/to/game.exe [options]
 
 Options:
@@ -23,8 +21,8 @@ Options:
                                 --gameid=12345
     -s, --store               Game store (steam/gog/egs/battlenet/ea/humble/itchio/ubisoft/zoomplatform)
                                 --store=egs
-    -a, --launch_args         Game launch arguments, separated by '|'
-                                --launch_args="--fullscreen|--novid"
+    -a, --launch_args         Game launch arguments, separated by ','
+                                --launch_args="--fullscreen,--novid"
     -e, --exec                Additional commands/arguments before umu-run in Exec
                                 --exec="mangohud gamemode"
     -h, --help                Show this help message
@@ -38,7 +36,7 @@ Usage examples:
                                 --icon=/home/Downloads/GTA_HQ.png
                                 --prefix=~/Prefix
                                 --proton=~/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
-                                --launch_args="--fullscreen|--novid"
+                                --launch_args="--fullscreen,--novid"
                                 --exec="mangohud gamemode ENABLE_VKBASALT=1"
 
 Result:
@@ -53,172 +51,204 @@ Result:
 EOF
 }
 
+# === Colors ===
+GREEN="\e[32m"
+YELLOW="\e[33m"
+RED="\e[31m"
+BLUE="\e[34m"
+RESET="\e[0m"
+
+info() { echo -e "${BLUE}[INFO]${RESET} $1"; }
+success() { echo -e "${GREEN}[OK]${RESET} $1"; }
+warning() { echo -e "${YELLOW}[WARNING]${RESET} $1"; }
+error() { echo -e "${RED}[ERROR]${RESET} $1"; }
+
+# === Functions ===
+
+notify() {
+	local icon="${1:-applications-games-symbolic}"
+	local title="$2"
+	local body="$3"
+
+	command -v notify-send >/dev/null 2>&1 || return 0
+	[[ -f "$icon" ]] || icon="applications-games-symbolic"
+	notify-send -i "$icon" -a "UMU App" "$title" "$body"
+}
+
+find_proton() {
+	ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* 2>/dev/null |
+		sort -V | tail -n1
+}
+
 parse_launch_args() {
-    local input="$1"
-    IFS=',' read -ra raw <<< "$input"
-    for arg in "${raw[@]}"; do
-        arg=$(echo "$arg" | xargs)
-        ARGS+=("\"$arg\"")
-    done
+	local input="$1"
+	IFS=',' read -ra raw <<<"$input"
+
+	for arg in "${raw[@]}"; do
+		arg=$(echo "$arg" | xargs)
+		ARGS+=("\"$arg\"")
+	done
 }
 
 # === GUI Mode ===
 launch_gui() {
-    local file="$1"
-    local name="$2"
-    local icon="$3"
-    local prefix="$4"
-    local proton="$5"
-    local gameid="$6"
-    local store="$7"
-    local launch_args="$8"
-    local exec_args="$9"
+	local file="$1"
+	local name="$2"
+	local icon="$3"
+	local prefix="$4"
+	local proton="$5"
+	local gameid="$6"
+	local store="$7"
+	local launch_args="$8"
+	local exec_args="$9"
 
-    local proton_list=""
-    local proton_display=""
-    local steam_compat_dir="$HOME/.local/share/Steam/compatibilitytools.d"
-    #local system_compat_dir="/usr/share/steam/compatibilitytools.d"
-    
-    local all_protons=()
-    
-    if ls -d "$steam_compat_dir"/GE-Proton* >/dev/null 2>&1; then
-        while IFS= read -r path; do
-            all_protons+=("$path")
-        done < <(ls -d "$steam_compat_dir"/GE-Proton* 2>/dev/null | sort -V)
-    fi
-    
-    #if [[ -d "$system_compat_dir" ]] && ls -d "$system_compat_dir"/* >/dev/null 2>&1; then
-    #    while IFS= read -r path; do
-    #        all_protons+=("$path")
-    #   done < <(ls -d "$system_compat_dir"/* 2>/dev/null | sort -V)
-    #fi
-    
-    if [[ ${#all_protons[@]} -gt 0 ]]; then
-        local display_list=()
-        for ((i=${#all_protons[@]}-1; i>=0; i--)); do
-            display_list+=("$(basename "${all_protons[i]}")")
-        done
-        
-        proton_list=$(printf "%s!" "${display_list[@]}" | sed 's/!$//')
-        
-        local latest_proton="${all_protons[${#all_protons[@]}-1]}"
-        local latest_name="$(basename "$latest_proton")"
-        
-        if [[ -n "$proton" ]]; then
-            local proton_name=""
-            if [[ "$proton" == *"/"* ]]; then
-                proton_name="$(basename "$proton")"
-                proton_display="$proton"
-            else
-                proton_name="$proton"
-                for path in "${all_protons[@]}"; do
-                    if [[ "$(basename "$path")" == "$proton" ]]; then
-                        proton_display="$path"
-                        break
-                    fi
-                done
-            fi
-            
-            if [[ -d "$proton" && ! " ${display_list[@]} " =~ " $proton_name " ]]; then
-                proton_list="$proton_name!$proton_list"
-            fi
+	local proton_list=""
+	local proton_display=""
+	local steam_compat_dir="$HOME/.local/share/Steam/compatibilitytools.d"
+	#local system_compat_dir="/usr/share/steam/compatibilitytools.d"
 
-            proton_list=$(echo "$proton_list" | sed "s/!${proton_name}!/!^${proton_name}!/;s/^${proton_name}!/^${proton_name}!/")
-        else
-            proton_display="$latest_proton"
-            proton_list=$(echo "$proton_list" | sed "s/!${latest_name}!/!^${latest_name}!/;s/^${latest_name}!/^${latest_name}!/")
-        fi
-    else
-        if [[ -n "$proton" && -d "$proton" ]]; then
-            proton_list="^${proton}"
-            proton_display="$proton"
-        else
-            proton_list="^Default"
-        fi
-    fi
+	local all_protons=()
 
-    if [[ -z "$proton" ]] && [[ "$proton_list" != "None" ]]; then
-        proton=$(echo "$proton_list" | tr '!' '\n' | grep -v "^None$" | tail -n1)
-    fi
+	if ls -d "$steam_compat_dir"/GE-Proton* >/dev/null 2>&1; then
+		while IFS= read -r path; do
+			all_protons+=("$path")
+		done < <(ls -d "$steam_compat_dir"/GE-Proton* 2>/dev/null | sort -V)
+	fi
 
-    local store_list="^!steam!gog!egs!battlenet!ea!humble!itchio!ubisoft!zoomplatform"
-    
-    if [[ -n "$store" ]]; then
-        store_list=$(echo "$store_list" | sed "s/\^/None/" | sed "s/!${store}!/!^${store}!/")
-    fi
+	#if [[ -d "$system_compat_dir" ]] && ls -d "$system_compat_dir"/* >/dev/null 2>&1; then
+	#    while IFS= read -r path; do
+	#        all_protons+=("$path")
+	#   done < <(ls -d "$system_compat_dir"/* 2>/dev/null | sort -V)
+	#fi
 
-    local result
-    result=$(yad --form \
-        --title="UMU App - Create Desktop Entry" \
-        --window-icon="applications-games" \
-        --width=600 \
-        --height=450 \
-        --text=" " \
-        --separator="|" \
-        --item-separator="!" \
-        --button="Cancel:1" \
-        --button="Create:0" \
-        --field="Game Executable:FL" "$file" \
-        --field="App Name:" "$name" \
-        --field="Custom Icon:FL" "$icon" \
-        --field="Wine Prefix:DIR" "${prefix:-$HOME/Prefix}" \
-        --field="Proton (or path manually):CBE" "$proton_list" \
-        --field="Store (use only with UMU-Proton):CB" "$store_list" \
-        --field="Game ID:" "$gameid" \
-        --field="Launch .exe arguments (a,b):" "$launch_args" \
-        --field="Launch application arguments (a b):" "$exec_args")
+	if [[ ${#all_protons[@]} -gt 0 ]]; then
+		local display_list=()
 
-    local exit_code=$?
+		for ((i = ${#all_protons[@]} - 1; i >= 0; i--)); do
+			display_list+=("$(basename "${all_protons[i]}")")
+		done
 
-    if [[ $exit_code -ne 0 ]]; then
-        exit 0
-    fi
+		proton_list=$(printf "%s!" "${display_list[@]}" | sed 's/!$//')
 
-    IFS='|' read -r gui_file gui_name gui_icon gui_prefix gui_proton gui_store gui_gameid gui_launch_args gui_exec <<< "$result"
+		local latest_proton="${all_protons[${#all_protons[@]} - 1]}"
+		local latest_name="$(basename "$latest_proton")"
 
-    if [[ ! -f "$gui_file" ]]; then
-        yad --error --title="Error" --text="\nFile not selected\nPlease select a valid executable file\n" --window-icon=dialog-error
-        exit 1
-    fi
+		if [[ -n "$proton" ]]; then
+			local proton_name=""
+			if [[ "$proton" == *"/"* ]]; then
+				proton_name="$(basename "$proton")"
+				proton_display="$proton"
+			else
+				proton_name="$proton"
+				for path in "${all_protons[@]}"; do
+					if [[ "$(basename "$path")" == "$proton" ]]; then
+						proton_display="$path"
+						break
+					fi
+				done
+			fi
 
-    if ! [[ "$gui_file" =~ \.(exe|msi|bat|cmd)$ ]]; then
-        yad --error --title="Error" --text="\nFile must have one of the supported extensions:\n.exe, .msi, .bat, or .cmd\n" --window-icon=dialog-error
-        exit 1
-    fi
+			if [[ -d "$proton" && ! " ${display_list[@]} " =~ " $proton_name " ]]; then
+				proton_list="$proton_name!$proton_list"
+			fi
 
-    local final_proton=""
-    if [[ "$gui_proton" != "Default" && -n "$gui_proton" ]]; then
-        gui_proton="${gui_proton#^}"
-        
-        local steam_path="$HOME/.local/share/Steam/compatibilitytools.d/$gui_proton"
-        #local system_path="/usr/share/steam/compatibilitytools.d/$gui_proton"
-        
-        if [[ -d "$steam_path" ]]; then
-            final_proton="$steam_path"
-        #elif [[ -d "$system_path" ]]; then
-        #    final_proton="$system_path"
-        else
-            gui_proton="${gui_proton/#\~/$HOME}"
-            
-            if [[ -d "$gui_proton" ]]; then
-                final_proton="$gui_proton"
-            else
-                final_proton=""
-            fi
-        fi
-    fi
+			proton_list=$(echo "$proton_list" | sed "s/!${proton_name}!/!^${proton_name}!/;s/^${proton_name}!/^${proton_name}!/")
+		else
+			proton_display="$latest_proton"
+			proton_list=$(echo "$proton_list" | sed "s/!${latest_name}!/!^${latest_name}!/;s/^${latest_name}!/^${latest_name}!/")
+		fi
+	else
+		if [[ -n "$proton" && -d "$proton" ]]; then
+			proton_list="^${proton}"
+			proton_display="$proton"
+		else
+			proton_list="^Default"
+		fi
+	fi
 
-    local cmd_args=("$gui_file")
-    [[ -n "$gui_name" ]] && cmd_args+=(--name="$gui_name")
-    [[ -n "$gui_icon" ]] && cmd_args+=(--icon="$gui_icon")
-    [[ -n "$gui_prefix" ]] && cmd_args+=(--prefix="$gui_prefix")
-    [[ -n "$final_proton" ]] && cmd_args+=(--proton="$final_proton")
-    [[ "$gui_store" != " " && -n "$gui_store" ]] && cmd_args+=(--store="$gui_store")
-    [[ -n "$gui_gameid" ]] && cmd_args+=(--gameid="$gui_gameid")
-    [[ -n "$gui_launch_args" ]] && cmd_args+=(--launch_args="$gui_launch_args")
-    [[ -n "$gui_exec" ]] && cmd_args+=(--exec="$gui_exec")
+	if [[ -z "$proton" ]] && [[ "$proton_list" != "None" ]]; then
+		proton=$(echo "$proton_list" | tr '!' '\n' | grep -v "^None$" | tail -n1)
+	fi
 
-    exec "$0" "${cmd_args[@]}"
+	local store_list="^!steam!gog!egs!battlenet!ea!humble!itchio!ubisoft!zoomplatform"
+
+	if [[ -n "$store" ]]; then
+		store_list=$(echo "$store_list" | sed "s/\^/None/" | sed "s/!${store}!/!^${store}!/")
+	fi
+
+	local result
+	result=$(yad --form \
+		--title="UMU App - Create Desktop Entry" \
+		--window-icon="applications-games" \
+		--width=600 \
+		--height=450 \
+		--text=" " \
+		--separator="|" \
+		--item-separator="!" \
+		--button="Cancel:1" \
+		--button="Create:0" \
+		--field="Game Executable:FL" "$file" \
+		--field="App Name:" "$name" \
+		--field="Custom Icon:FL" "$icon" \
+		--field="Wine Prefix:DIR" "${prefix:-$HOME/Prefix}" \
+		--field="Proton (or path manually):CBE" "$proton_list" \
+		--field="Store (use only with UMU-Proton):CB" "$store_list" \
+		--field="Game ID:" "$gameid" \
+		--field="Launch .exe arguments (a,b):" "$launch_args" \
+		--field="Launch application arguments (a b):" "$exec_args")
+
+	local exit_code=$?
+
+	if [[ $exit_code -ne 0 ]]; then
+		exit 0
+	fi
+
+	IFS='|' read -r gui_file gui_name gui_icon gui_prefix gui_proton gui_store gui_gameid gui_launch_args gui_exec <<<"$result"
+
+	if [[ ! -f "$gui_file" ]]; then
+		yad --error --title="Error" --text="\nFile not selected\nPlease select a valid executable file\n" --window-icon=dialog-error
+		exit 1
+	fi
+
+	if ! [[ "$gui_file" =~ \.(exe|msi|bat|cmd)$ ]]; then
+		yad --error --title="Error" --text="\nFile must have one of the supported extensions:\n.exe, .msi, .bat, or .cmd\n" --window-icon=dialog-error
+		exit 1
+	fi
+
+	local final_proton=""
+
+	if [[ "$gui_proton" != "Default" && -n "$gui_proton" ]]; then
+		gui_proton="${gui_proton#^}"
+
+		local steam_path="$HOME/.local/share/Steam/compatibilitytools.d/$gui_proton"
+		#local system_path="/usr/share/steam/compatibilitytools.d/$gui_proton"
+
+		if [[ -d "$steam_path" ]]; then
+			final_proton="$steam_path"
+		#elif [[ -d "$system_path" ]]; then
+		#    final_proton="$system_path"
+		else
+			gui_proton="${gui_proton/#\~/$HOME}"
+
+			if [[ -d "$gui_proton" ]]; then
+				final_proton="$gui_proton"
+			else
+				final_proton=""
+			fi
+		fi
+	fi
+
+	local cmd_args=("$gui_file")
+	[[ -n "$gui_name" ]] && cmd_args+=(--name="$gui_name")
+	[[ -n "$gui_icon" ]] && cmd_args+=(--icon="$gui_icon")
+	[[ -n "$gui_prefix" ]] && cmd_args+=(--prefix="$gui_prefix")
+	[[ -n "$final_proton" ]] && cmd_args+=(--proton="$final_proton")
+	[[ "$gui_store" != " " && -n "$gui_store" ]] && cmd_args+=(--store="$gui_store")
+	[[ -n "$gui_gameid" ]] && cmd_args+=(--gameid="$gui_gameid")
+	[[ -n "$gui_launch_args" ]] && cmd_args+=(--launch_args="$gui_launch_args")
+	[[ -n "$gui_exec" ]] && cmd_args+=(--exec="$gui_exec")
+
+	exec "$0" "${cmd_args[@]}"
 }
 
 # === Check for GUI mode ===
@@ -226,151 +256,104 @@ GUI_MODE=false
 FILE="" NAME="" ICON="" PREFIX="" PROTON="" GAMEID="" STORE="" ARGS_STR="" EXEC_STR=""
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --gui)
-            GUI_MODE=true
-            shift
-            ;;
-        -u|--update-proton)
-            echo "Downloading latest GE-Proton..."
-            PROTONPATH=GE-Proton umu-run "" >/dev/null 2>&1 || true
-            PROTON=$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* 2>/dev/null | sort -V | tail -n1)
-            [[ -n "$PROTON" ]] && echo "  PROTON : $PROTON"
-            exit 0
-            ;;
-        -h|--help)
-            help
-            exit 0
-            ;;
-        *)
-            if [[ -z "$FILE" && -f "$1" && "$1" =~ \.(exe|msi|bat|cmd)$ ]]; then
-                FILE="$1"
-                shift
-            elif [[ "$1" == --*=* ]]; then
-                KEY="${1%%=*}"
-                VALUE="${1#*=}"
-                VALUE="${VALUE/#\~/$HOME}"
-                case "$KEY" in
-                    --name) NAME="$VALUE" ;;
-                    --icon) ICON="$VALUE" ;;
-                    --prefix) PREFIX="$VALUE" ;;
-                    --proton) PROTON="$VALUE" ;;
-                    --gameid) GAMEID="$VALUE" ;;
-                    --store) STORE="$VALUE" ;;
-                    --launch_args) ARGS_STR="$VALUE" ;;
-                    --exec) EXEC_STR="$VALUE" ;;
-                esac
-                shift
-            elif [[ "$1" =~ ^-(n|-name|i|-icon|w|-prefix|p|-proton|g|-gameid|s|-store|a|-launch_args|e|-exec)$ ]]; then
-                KEY="$1"
-                VALUE="${2:-}"
-                VALUE="${VALUE/#\~/$HOME}"
-                case "$KEY" in
-                    -n|--name) NAME="$VALUE" ;;
-                    -i|--icon) ICON="$VALUE" ;;
-                    -w|--prefix) PREFIX="$VALUE" ;;
-                    -p|--proton) PROTON="$VALUE" ;;
-                    -g|--gameid) GAMEID="$VALUE" ;;
-                    -s|--store) STORE="$VALUE" ;;
-                    -a|--launch_args) ARGS_STR="$VALUE" ;;
-                    -e|--exec) EXEC_STR="$VALUE" ;;
-                esac
-                shift 2
-            else
-                shift
-            fi
-            ;;
-    esac
-done
+	case "$1" in
+	--gui)
+		GUI_MODE=true
+		shift
+		;;
+	-u | --update-proton)
+		info "Downloading latest GE-Proton..."
 
-set -- "${ORIGINAL_ARGS[@]}"
+		notify "" "Downloading GE-Proton..." "Please wait."
+
+		PROTONPATH=GE-Proton umu-run true >/dev/null 2>&1 || true
+		PROTON=$(find_proton)
+
+		if [[ -n "$PROTON" ]]; then
+			success "PROTON : $PROTON"
+			notify "" "GE-Proton downloaded" "$(basename "$PROTON")"
+		else
+			warning "GE-Proton download may have failed"
+		fi
+
+		exit 0
+		;;
+	-h | --help)
+		help
+		exit 0
+		;;
+	*)
+		if [[ -z "$FILE" && -f "$1" && "$1" =~ \.(exe|msi|bat|cmd)$ ]]; then
+			FILE="$1"
+			shift
+		elif [[ "$1" == --*=* ]]; then
+			KEY="${1%%=*}"
+			VALUE="${1#*=}"
+			VALUE="${VALUE/#\~/$HOME}"
+
+			case "$KEY" in
+			--name) NAME="$VALUE" ;;
+			--icon) ICON="$VALUE" ;;
+			--prefix) PREFIX="$VALUE" ;;
+			--proton) PROTON="$VALUE" ;;
+			--gameid) GAMEID="$VALUE" ;;
+			--store) STORE="$VALUE" ;;
+			--launch_args) ARGS_STR="$VALUE" ;;
+			--exec) EXEC_STR="$VALUE" ;;
+			esac
+
+			shift
+		elif [[ "$1" =~ ^-(n|-name|i|-icon|w|-prefix|p|-proton|g|-gameid|s|-store|a|-launch_args|e|-exec)$ ]]; then
+			KEY="$1"
+			VALUE="${2:-}"
+			VALUE="${VALUE/#\~/$HOME}"
+
+			case "$KEY" in
+			-n | --name) NAME="$VALUE" ;;
+			-i | --icon) ICON="$VALUE" ;;
+			-w | --prefix) PREFIX="$VALUE" ;;
+			-p | --proton) PROTON="$VALUE" ;;
+			-g | --gameid) GAMEID="$VALUE" ;;
+			-s | --store) STORE="$VALUE" ;;
+			-a | --launch_args) ARGS_STR="$VALUE" ;;
+			-e | --exec) EXEC_STR="$VALUE" ;;
+			esac
+
+			shift 2
+		else
+			shift
+		fi
+		;;
+	esac
+done
 
 if $GUI_MODE; then
-    if ! command -v yad >/dev/null 2>&1; then
-        if command -v notify-send >/dev/null 2>&1; then
-            notify-send -i "applications-games-symbolic" -a "UMU App" "YAD is not installed" "Please install it first."
-        fi
-        exit 1
-    fi
-    
-    launch_gui "$FILE" "$NAME" "$ICON" "$PREFIX" "$PROTON" "$GAMEID" "$STORE" "$ARGS_STR" "$EXEC_STR"
-    exit 0
+	if ! command -v yad >/dev/null 2>&1; then
+		notify "" "YAD is not installed" "Please install it first."
+		exit 1
+	fi
+
+	launch_gui "$FILE" "$NAME" "$ICON" "$PREFIX" "$PROTON" "$GAMEID" "$STORE" "$ARGS_STR" "$EXEC_STR"
+	exit 0
 fi
 
-if [[ $# -eq 0 ]]; then
-    help
-    exit 0
+if [[ -z "$FILE" ]]; then
+	help
+	exit 0
 fi
-
-FILE="${1:-}"
 
 if [[ ! -f "$FILE" ]]; then
-    echo "Error: File not found or not a valid path: '$FILE'"
-    exit 1
+	error "File not found or not a valid path: '$FILE'"
+	exit 1
 elif ! [[ "$FILE" =~ \.(exe|msi|bat|cmd)$ ]]; then
-    echo "Error: File '$FILE' must have one of the supported extensions: .exe, .msi, .bat, or .cmd"
-    exit 1
+	error "File '$FILE' must have one of the supported extensions: .exe, .msi, .bat, or .cmd"
+	exit 1
 fi
 
-shift
-
-NAME="" ICON="" PREFIX="" PROTON="" GAMEID="" STORE="" ARGS=() EXEC_ARGS=()
-
-while (( $# )); do
-    if [[ "$1" == --*=* ]]; then
-        KEY="${1%%=*}"
-        VALUE="${1#*=}"
-        VALUE="${VALUE/#\~/$HOME}"
-
-        case "$KEY" in
-            --name) NAME="$VALUE" ;;
-            --icon) ICON="$VALUE" ;;
-            --prefix) PREFIX="$VALUE" ;;
-            --proton) PROTON="$VALUE" ;;
-            --gameid) GAMEID="$VALUE" ;;
-            --store) STORE="$VALUE" ;;
-            --launch_args) parse_launch_args "$VALUE" ;;
-            --exec) read -ra EXEC_ARGS <<< "$VALUE" ;;
-            --help) help; exit 0 ;;
-            *) echo "Unknown option: $KEY"; exit 1 ;;
-        esac
-
-        shift
-        continue
-    fi
-
-    case "$1" in
-        -n|--name)
-            NAME="$2"; shift 2 ;;
-        -i|--icon)
-            ICON="${2/#\~/$HOME}"; shift 2 ;;
-        -w|--prefix)
-            PREFIX="${2/#\~/$HOME}"; shift 2 ;;
-        -p|--proton)
-            PROTON="${2/#\~/$HOME}"; shift 2 ;;
-        -g|--gameid)
-            GAMEID="$2"; shift 2 ;;
-        -s|--store)
-            STORE="$2"; shift 2 ;;
-        -a|--launch_args) parse_launch_args "$2"; shift 2 ;;
-        -e|--exec)
-            if [[ "$2" ]]; then
-                read -ra EXEC_ARGS <<< "$2"
-                shift 2
-            else
-                echo "Error: -e/--exec requires arguments in quotes"
-                exit 1
-            fi
-            ;;
-        -h|--help)
-            help; exit 0 ;;
-        --)
-            shift
-            break ;;
-        *)
-            echo "Unknown option: $1"; exit 1 ;;
-    esac
-done
+ARGS=()
+EXEC_ARGS=()
+[[ -n "$ARGS_STR" ]] && parse_launch_args "$ARGS_STR"
+[[ -n "$EXEC_STR" ]] && read -ra EXEC_ARGS <<<"$EXEC_STR"
 
 FILE_DIR="$(dirname "$FILE")"
 FILE_BASE="$(basename "$FILE")"
@@ -385,84 +368,105 @@ ICON_PATH="$ICON_DIR/$NAME.png"
 PREFIX="${PREFIX:-$HOME/Prefix}"
 
 if [[ ${#EXEC_ARGS[@]} -gt 0 ]]; then
-    EXEC_CMD="env ${EXEC_ARGS[*]} umu-run --config \"$TOML\""
+	exec_cmd="env ${EXEC_ARGS[*]} umu-run --config \"$TOML\""
 else
-    EXEC_CMD="env umu-run --config \"$TOML\""
+	exec_cmd="env umu-run --config \"$TOML\""
 fi
 
 mkdir -p "$ICON_DIR"
 
 # === Ensure PREFIX and PROTON ===
 if [[ -z "$PROTON" ]]; then
-    if ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
-        PROTON=$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* 2>/dev/null | sort -V | tail -n1)
-        echo "  PROTON : $PROTON"
-    else
-        echo "Downloading GE-Proton..."
-        PROTONPATH=GE-Proton umu-run "" >/dev/null 2>&1 || true
-        
-        PROTON=$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* 2>/dev/null | sort -V | tail -n1)
-        [[ -n "$PROTON" ]] && echo "  PROTON : $PROTON"
-    fi
+	if ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
+		PROTON=$(find_proton)
+		info "PROTON : $PROTON"
+	else
+		warning "GE-Proton not found. Downloading latest version..."
+
+		notify "" "Downloading GE-Proton..." "This may take a while. Please wait."
+
+		PROTONPATH=GE-Proton umu-run true >/dev/null 2>&1 || true
+		PROTON=$(find_proton)
+
+		if [[ -n "$PROTON" ]]; then
+			success "PROTON : $PROTON"
+			notify "" "GE-Proton downloaded" "$(basename "$PROTON")"
+		else
+			warning "GE-Proton download may have failed. The app may not launch correctly."
+		fi
+	fi
 fi
 
 if [[ ! -d "$PREFIX" ]]; then
-    echo "Providing PREFIX..."
+	info "Creating Wine prefix..."
 
-    WINEPREFIX="$PREFIX" PROTONPATH=GE-Proton umu-run "" >/dev/null 2>&1 || true
+	notify "" "Creating Wine prefix..." "$PREFIX"
 
-    echo "  PREFIX : $PREFIX"
+	WINEPREFIX="$PREFIX" PROTONPATH="${PROTON:-GE-Proton}" umu-run true >/dev/null 2>&1 || true
+
+	if [[ -d "$PREFIX" ]]; then
+		success "PREFIX : $PREFIX"
+	else
+		info "PREFIX : $PREFIX (will be initialized on first launch)"
+	fi
 fi
 
 # === .toml ===
 {
-    printf '[umu]\n'
-    printf 'prefix = "%s"\n' "$PREFIX"
-    printf 'proton = "%s"\n' "$PROTON"
-    [[ -n "$GAMEID" ]] && printf 'game_id = "%s"\n' "$GAMEID"
-    printf 'exe = "%s"\n' "$FILE"
-    [[ -n "$STORE" ]] && printf 'store = "%s"\n' "$STORE"
-    (( ${#ARGS[@]} )) && printf 'launch_args = [%s]\n' "$(IFS=,; echo "${ARGS[*]}")"
-} > "$TOML"
+	printf '[umu]\n'
+	printf 'prefix = "%s"\n' "$PREFIX"
+	printf 'proton = "%s"\n' "$PROTON"
+	[[ -n "$GAMEID" ]] && printf 'game_id = "%s"\n' "$GAMEID"
+	printf 'exe = "%s"\n' "$FILE"
+	[[ -n "$STORE" ]] && printf 'store = "%s"\n' "$STORE"
+	((${#ARGS[@]})) && printf 'launch_args = [%s]\n' "$(
+		IFS=,
+		echo "${ARGS[*]}"
+	)"
+} >"$TOML"
 
 # === Icon ===
 if [[ -n "$ICON" && -f "$ICON" ]]; then
-    command -v magick >/dev/null 2>&1 && \
-        magick "$ICON" -strip -resize 128x128 "$ICON_PATH" || \
-        cp "$ICON" "$ICON_PATH"
+	if command -v magick >/dev/null 2>&1; then
+		magick "$ICON" -strip -resize 128x128 "$ICON_PATH" || cp "$ICON" "$ICON_PATH"
+	else
+		cp "$ICON" "$ICON_PATH"
+	fi
 
 elif command -v wrestool >/dev/null 2>&1 && command -v icotool >/dev/null 2>&1; then
-    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-    
-    wrestool -x -t14 "$FILE" --output="$tmp/" >/dev/null 2>&1 && \
-    icotool -x --output="$tmp/" "$tmp/"*.ico >/dev/null 2>&1
-    
-    BEST_ICON=$(ls -S "$tmp"/*.png 2>/dev/null | head -n1)
+	tmp=$(mktemp -d)
 
-    if [[ -n "$BEST_ICON" ]]; then
-        command -v magick >/dev/null 2>&1 && \
-            magick "$BEST_ICON" -strip -resize 128x128 "$ICON_PATH" || \
-            cp "$BEST_ICON" "$ICON_PATH"
-    fi
+	wrestool -x -t14 "$FILE" --output="$tmp/" >/dev/null 2>&1 || true
+	icotool -x --output="$tmp/" "$tmp/"*.ico >/dev/null 2>&1 || true
+
+	best_icon=$(ls -S "$tmp"/*.png 2>/dev/null | head -n1) || true
+
+	if [[ -n "$best_icon" ]]; then
+		if command -v magick >/dev/null 2>&1; then
+			magick "$best_icon" -strip -resize 128x128 "$ICON_PATH" || cp "$best_icon" "$ICON_PATH"
+		else
+			cp "$best_icon" "$ICON_PATH"
+		fi
+	fi
+
+	rm -rf "$tmp"
 fi
 
 # === .desktop ===
 {
-    printf '[Desktop Entry]\n'
-    printf 'Name=%s\n' "$NAME"
-    printf 'Exec=%s\n' "$EXEC_CMD"
-    printf 'Type=Application\n'
-    printf 'Categories=Games;Wine;\n'
-    printf 'Terminal=false\n'
-    [[ -f "$ICON_PATH" ]] && printf 'Icon=%s\n' "$ICON_PATH"
-} > "$DESKTOP"
+	printf '[Desktop Entry]\n'
+	printf 'Name=%s\n' "$NAME"
+	printf 'Exec=%s\n' "$exec_cmd"
+	printf 'Type=Application\n'
+	printf 'Categories=Games;Wine;\n'
+	printf 'Terminal=false\n'
+	[[ -f "$ICON_PATH" ]] && printf 'Icon=%s\n' "$ICON_PATH"
+} >"$DESKTOP"
 
 # === Result ===
-echo "Created:"
-echo "  Config : $TOML"
-echo "  Desktop: $DESKTOP"
-[[ -f "$ICON_PATH" ]] && echo "  Icon   : $ICON_PATH"
+success "Created:"
+info "  Config : $TOML"
+info "  Desktop: $DESKTOP"
+[[ -f "$ICON_PATH" ]] && info "  Icon   : $ICON_PATH"
 
-if command -v notify-send >/dev/null 2>&1; then
-    notify-send -i "$ICON_PATH" -a "UMU App" "Config file created successfully" "Desktop application for \"$NAME\" is ready."
-fi
+notify "$ICON_PATH" "Config file created successfully" "Desktop application for \"$NAME\" is ready."

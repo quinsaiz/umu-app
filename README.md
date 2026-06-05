@@ -7,13 +7,14 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
 `install.sh` automatically installs `UMU Launch.desktop` to run any MS-DOS program in the file manager and `UMU Application.desktop` GUI version `umu-app`.
 
 ## Features
+
 - **GUI Mode** — graphical interface for easy configuration (using YAD).
 - Auto-generate **TOML** config.
 - Create **.desktop** launchers in `~/.local/share/applications`.
 - Extract icons from MS-DOS program (ICO → PNG) or use custom icons.
 - Auto-detect latest **GE-Proton** from multiple locations:
   - `~/.local/share/Steam/compatibilitytools.d/`
-  - `/usr/share/steam/compatibilitytools.d/` (Arch Linux AUR packages)
+  - `/usr/share/steam/compatibilitytools.d/`
 - Auto-create Wine prefix if missing.
 - Supports:
   - Custom name.
@@ -26,6 +27,7 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
   - Additional launch commands (mangohud, gamemode, etc.).
 
 ## Requirements
+
 - **umu-run** — included in [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher).
 - **(optional) yad** — for GUI mode.
 - **(optional) icoutils** — for extracting icons from executables.
@@ -34,37 +36,54 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
 ## Installation
 
 ### Clone the repository
+
 ```bash
-git clone https://github.com/quinsaiz/umu-app.git
+git clone https://github.com/quinsaiz/umu-app.git && \
 cd umu-app
 ```
+
 ### Give permission to execute the file
+
 ```bash
 chmod +x ./install.sh
 ```
+
 ### Install
+
 ```bash
 ./install.sh
 ```
 
 ---
 
+### Install optional dependencies
+
+```bash
+./install.sh --deps
+```
+
+Installs: `yad` (GUI), `imagemagick` (icon resizing), `icoutils` (icon extraction from `.exe`).
+
+---
+
 ### Uninstall
+
 ```bash
 ./install.sh --uninstall
 ```
 
 The uninstallation process removes the following files:
 
-* **Main Executable:**
-    - `/usr/bin/umu-app`
-* **Desktop Launchers:**
-    - `~/.local/share/applications/umu-app.desktop`
-    - `~/.local/share/applications/umu-launch.desktop`
+- **Main Executable:**
+  - `/usr/bin/umu-app`
+- **Desktop Launchers:**
+  - `~/.local/share/applications/umu-app.desktop`
+  - `~/.local/share/applications/umu-launch.desktop`
 
 ## Usage
 
 ### GUI Mode (Recommended)
+
 Launch the graphical interface for easy configuration:
 
 ```bash
@@ -87,6 +106,7 @@ umu-app ~/Games/Skyrim/SkyrimSE.exe --gui \
 ```
 
 The GUI allows you to:
+
 - Select game executable (`.exe`, `.msi`, `.bat`, `.cmd`)
 - Set application name
 - Choose custom icon
@@ -100,6 +120,7 @@ The GUI allows you to:
 ### Command Line Mode
 
 #### Basic
+
 ```bash
 umu-app /path/to/game.exe
 ```
@@ -108,7 +129,7 @@ umu-app /path/to/game.exe
 
 | Short | Long | Description | Example |
 | :---: | :--- | :--- | :--- |
-| `--gui` | | Launch graphical interface | `--gui` |
+| | `--gui` | Launch graphical interface | `--gui` |
 | `-n` | `--name` | App name | `--name="Skyrim Special Edition"` |
 | `-i` | `--icon` | Path to a custom icon | `--icon=/home/user/icons/game.png` |
 | `-w` | `--prefix` | Wine prefix (default: `~/Prefix`) | `--prefix=/home/user/Prefix` |
@@ -120,6 +141,7 @@ umu-app /path/to/game.exe
 | `-h` | `--help` | Show help message | `--help` |
 
 #### Example
+
 ```bash
 umu-app ~/Games/Skyrim/SkyrimSE.exe \
   --name="Skyrim V SE" \
@@ -131,7 +153,8 @@ umu-app ~/Games/Skyrim/SkyrimSE.exe \
   --exec="mangohud gamemode"
 ```
 
-### Output:
+### Output
+
 ```text
 Created:
   Config : /home/user/Games/Skyrim/Skyrim V SE.toml
@@ -142,8 +165,9 @@ Created:
 ## Proton Detection
 
 The script automatically detects Proton installations from:
-1. `~/.local/share/Steam/compatibilitytools.d/` (manual GE-Proton installations)
-2. `/usr/share/steam/compatibilitytools.d/` (Arch Linux AUR: `proton-ge-custom-bin`)
+
+`~/.local/share/Steam/compatibilitytools.d/`
+<!-- 2. `/usr/share/steam/compatibilitytools.d/` -->
 
 In GUI mode, available Proton versions are displayed in a dropdown list (newest first).
 You can also specify a custom Proton directory by typing the path or using the folder selector.
@@ -155,6 +179,7 @@ If no Proton is found and none is specified, the script will automatically downl
 After running the script, the following files are created:
 
 1. **TOML Config** — `<game_directory>/<app_name>.toml`
+
    ```toml
    [umu]
    prefix = "/home/user/Prefix"
@@ -166,6 +191,7 @@ After running the script, the following files are created:
    ```
 
 2. **Desktop Launcher** — `~/.local/share/applications/<app_name>.desktop`
+
    ```ini
    [Desktop Entry]
    Name=Game Name
@@ -189,15 +215,19 @@ After running the script, the following files are created:
 ## Troubleshooting
 
 **GUI doesn't launch:**
+
 - Install YAD: `sudo pacman -S yad` (Arch) or `sudo apt install yad` (Debian/Ubuntu)
 
 **Icon not extracted:**
+
 - Install icoutils: `sudo pacman -S icoutils` (Arch) or `sudo apt install icoutils` (Debian/Ubuntu)
 
 **Icon quality is poor:**
+
 - Install ImageMagick: `sudo pacman -S imagemagick` (Arch) or `sudo apt install imagemagick` (Debian/Ubuntu)
 
 **Proton not detected:**
+
 - Ensure Proton is installed in `~/.local/share/Steam/compatibilitytools.d/` or `/usr/share/steam/compatibilitytools.d/`
 - Or specify a custom path with `--proton`
 
