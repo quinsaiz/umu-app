@@ -20,8 +20,8 @@ Automatically extracts icons, prepares Wine prefixes, detects the newest GE-Prot
   - Custom name.
   - Custom icon.
   - Custom WINEPREFIX.
-  - Custom Proton (system paths or custom directories).
-  - UMU `game_id` (only if use UMU-Proton).
+  - Custom Proton.
+  - Game ID for protonfixes.
   - Store tag (steam/gog/egs/battlenet/ea/humble/itchio/ubisoft/zoomplatform).
   - Launch arguments for the game executable.
   - Additional launch commands (mangohud, gamemode, etc.).
@@ -112,7 +112,7 @@ The GUI allows you to:
 - Choose custom icon
 - Select Wine prefix directory
 - Choose Proton version from dropdown (or specify custom path)
-- Select game store (for UMU-Proton compatibility)
+- Select game store (optional)
 - Set Game ID (optional)
 - Add launch arguments
 - Add additional commands (mangohud, gamemode, etc.)
@@ -134,8 +134,8 @@ umu-app /path/to/game.exe
 | `-i` | `--icon` | Path to a custom icon | `--icon=/home/user/icons/game.png` |
 | `-w` | `--prefix` | Wine prefix (default: `~/Prefix`) | `--prefix=/home/user/Prefix` |
 | `-p` | `--proton` | Proton path or name (default: latest GE-Proton) | `--proton=GE-Proton10-26` or `--proton=~/custom-proton` |
-| `-g` | `--gameid` | UMU game\_id (optional) | `--gameid=12345` |
-| `-s` | `--store` | Game store | `--store=steam` |
+| `-g` | `--gameid` | Game ID (optional) | `--gameid=12345` |
+| `-s` | `--store` | Game store (optional) | `--store=steam` |
 | `-a` | `--launch_args` | Game launch arguments, separated by comma | `--launch_args="--fullscreen,--novid"` |
 | `-e` | `--exec` | Additional commands before `umu-run` | `--exec="mangohud gamemode"` |
 | `-h` | `--help` | Show help message | `--help` |

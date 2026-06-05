@@ -177,43 +177,64 @@ launch_gui() {
 	fi
 
 	local result
-	result=$(yad --form \
-		--title="UMU App - Create Desktop Entry" \
-		--window-icon="applications-games" \
-		--width=600 \
-		--height=450 \
-		--text=" " \
-		--separator="|" \
-		--item-separator="!" \
-		--button="Cancel:1" \
-		--button="Create:0" \
-		--field="Game Executable:FL" "$file" \
-		--field="App Name:" "$name" \
-		--field="Custom Icon:FL" "$icon" \
-		--field="Wine Prefix:DIR" "${prefix:-$HOME/Prefix}" \
-		--field="Proton (or path manually):CBE" "$proton_list" \
-		--field="Store (use only with UMU-Proton):CB" "$store_list" \
-		--field="Game ID:" "$gameid" \
-		--field="Launch .exe arguments (a,b):" "$launch_args" \
-		--field="Launch application arguments (a b):" "$exec_args")
+	local exit_code
 
-	local exit_code=$?
+	while true; do
+		local store_list="^!steam!gog!egs!battlenet!ea!humble!itchio!ubisoft!zoomplatform"
 
-	if [[ $exit_code -ne 0 ]]; then
-		exit 0
-	fi
+		if [[ -n "$store" && "$store" != " " ]]; then
+			store_list=$(echo "^!steam!gog!egs!battlenet!ea!humble!itchio!ubisoft!zoomplatform" | sed "s/\^/None/" | sed "s/!${store}!/!^${store}!/")
+		fi
 
-	IFS='|' read -r gui_file gui_name gui_icon gui_prefix gui_proton gui_store gui_gameid gui_launch_args gui_exec <<<"$result"
+		result=$(yad --form \
+			--title="UMU App - Create Desktop Entry" \
+			--window-icon="applications-games" \
+			--width=600 \
+			--height=450 \
+			--text=" " \
+			--separator="|" \
+			--item-separator="!" \
+			--button="Cancel:1" \
+			--button="Create:0" \
+			--field="Game Executable:FL" "$file" \
+			--field="App Name:" "$name" \
+			--field="Custom Icon:FL" "$icon" \
+			--field="Wine Prefix:DIR" "${prefix:-$HOME/Prefix}" \
+			--field="Proton (or path manually):CBE" "$proton_list" \
+			--field="Store:CB" "$store_list" \
+			--field="Game ID:" "$gameid" \
+			--field="Launch .exe arguments (a,b):" "$launch_args" \
+			--field="Launch application arguments (a b):" "$exec_args")
 
-	if [[ ! -f "$gui_file" ]]; then
-		yad --error --title="Error" --text="\nFile not selected\nPlease select a valid executable file\n" --window-icon=dialog-error
-		exit 1
-	fi
+		exit_code=$?
 
-	if ! [[ "$gui_file" =~ \.(exe|msi|bat|cmd)$ ]]; then
-		yad --error --title="Error" --text="\nFile must have one of the supported extensions:\n.exe, .msi, .bat, or .cmd\n" --window-icon=dialog-error
-		exit 1
-	fi
+		if [[ $exit_code -ne 0 ]]; then
+			exit 0
+		fi
+
+		IFS='|' read -r gui_file gui_name gui_icon gui_prefix gui_proton gui_store gui_gameid gui_launch_args gui_exec <<<"$result"
+
+		file="$gui_file"
+		name="$gui_name"
+		icon="$gui_icon"
+		prefix="$gui_prefix"
+		store="$gui_store"
+		gameid="$gui_gameid"
+		launch_args="$gui_launch_args"
+		exec_args="$gui_exec"
+
+		if [[ ! -f "$gui_file" ]]; then
+			yad --error --title="Error" --text="\nFile not selected\nPlease select a valid executable file\n" --window-icon=dialog-error
+			continue
+		fi
+
+		if ! [[ "$gui_file" =~ \.(exe|msi|bat|cmd)$ ]]; then
+			yad --error --title="Error" --text="\nFile must have one of the supported extensions:\n.exe, .msi, .bat, or .cmd\n" --window-icon=dialog-error
+			continue
+		fi
+
+		break
+	done
 
 	local final_proton=""
 
