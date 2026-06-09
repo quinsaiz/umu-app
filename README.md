@@ -171,8 +171,8 @@ umu-app ~/Games/Skyrim/SkyrimSE.exe \
   --icon=~/Pictures/skyrim.png \
   --prefix=~/Games/Skyrim/prefix \
   --proton=GE-Proton10-26 \
-  --store=steam \
-  --gameid=489830 \
+  --store=egs \
+  --gameid=umu-489830 \
   --launch_args="--fullscreen,--novid" \
   --exec="mangohud gamemode ENABLE_VKBASALT=1"
 ```

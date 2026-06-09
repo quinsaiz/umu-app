@@ -18,7 +18,7 @@ Options:
     -p, --proton              Proton/GE-Proton for running the app (default: latest GE-Proton in Steam compatibilitytools.d)
                                 --proton=/home/user/.local/share/Steam/compatibilitytools.d/GE-Proton-9.0
     -g, --gameid              UMU game_id (optional)
-                                --gameid=12345
+                                --gameid=umu-12345
     -s, --store               Game store (steam/gog/egs/battlenet/ea/humble/itchio/ubisoft/zoomplatform)
                                 --store=egs
     -a, --launch_args         Game launch arguments, separated by ','
@@ -71,7 +71,9 @@ notify() {
 	local body="$3"
 
 	command -v notify-send >/dev/null 2>&1 || return 0
+
 	[[ -f "$icon" ]] || icon="applications-games"
+	
 	notify-send -i "$icon" -a "UMU App" "$title" "$body"
 }
 
@@ -81,18 +83,18 @@ find_proton() {
 }
 
 update_proton() {
-    info "Downloading latest GE-Proton..."
-    notify "" "Downloading GE-Proton..." "Please wait. This may take a while."
+	info "Downloading latest GE-Proton..."
+	notify "" "Downloading GE-Proton..." "Please wait. This may take a while."
 
-    PROTONPATH=GE-Proton umu-run true >/dev/null 2>&1 || true
-    PROTON=$(find_proton)
+	PROTONPATH=GE-Proton umu-run true >/dev/null 2>&1 || true
+	PROTON=$(find_proton)
 
-    if [[ -n "$PROTON" ]]; then
-        success "PROTON : $PROTON"
-        notify "" "GE-Proton downloaded" "$(basename "$PROTON")"
-    else
-        warning "GE-Proton download may have failed. The app may not launch correctly."
-    fi
+	if [[ -n "$PROTON" ]]; then
+		success "PROTON : $PROTON"
+		notify "" "GE-Proton downloaded" "$(basename "$PROTON")"
+	else
+		warning "GE-Proton download may have failed. The app may not launch correctly."
+	fi
 }
 
 parse_launch_args() {
@@ -217,7 +219,7 @@ launch_gui() {
 			--field="Wine Prefix:DIR" "${prefix:-$HOME/Prefix}" \
 			--field="Proton (or path manually):CBE" "$proton_list" \
 			--field="Store:CB" "$store_list" \
-			--field="Game ID:" "$gameid" \
+			--field="Game ID (umu-12345):" "$gameid" \
 			--field="Launch .exe arguments (a,b):" "$launch_args" \
 			--field="Launch application arguments (a b):" "$exec_args")
 
@@ -400,13 +402,13 @@ mkdir -p "$ICON_DIR"
 
 # === Ensure PREFIX and PROTON ===
 if [[ -z "$PROTON" ]]; then
-    if ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
-        PROTON=$(find_proton)
-        info "PROTON : $PROTON"
-    else
-        warning "GE-Proton not found."
-        update_proton
-    fi
+	if ls -d "$HOME/.local/share/Steam/compatibilitytools.d"/GE-Proton* >/dev/null 2>&1; then
+		PROTON=$(find_proton)
+		info "PROTON : $PROTON"
+	else
+		warning "GE-Proton not found."
+		update_proton
+	fi
 fi
 
 if [[ ! -d "$PREFIX" ]]; then
@@ -473,6 +475,8 @@ fi
 	printf 'Terminal=false\n'
 	[[ -f "$ICON_PATH" ]] && printf 'Icon=%s\n' "$ICON_PATH"
 } >"$DESKTOP"
+
+update-desktop-database ~/.local/share/applications/ >/dev/null 2>&1 || true
 
 # === Result ===
 success "Created:"
