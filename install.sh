@@ -110,7 +110,7 @@ sudo chmod +x "$SCRIPT_DEST"
 		"NoDisplay=true" \
 		"Name=Launch Windows app" \
 		"Comment=Launch Windows applications via Wine/Proton" \
-		"Exec=bash -c 'PROTONPATH=\$(ls -1d \$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton* 2>/dev/null | sort -V | tail -1); PROTONPATH=\${PROTONPATH:-GE-Proton} WINEPREFIX=\$HOME/Prefix umu-run \"\$@\"' -- %F" \
+		"Exec=umu-app run %f" \
 		"Type=Application" \
 		"Terminal=false" \
 		"Icon=wine" \
@@ -122,7 +122,7 @@ sudo chmod +x "$SCRIPT_DEST"
 {
 	printf '%s\n' \
 		"[Desktop Entry]" \
-		"Name=Create a desktop entry" \
+		"Name=Create Desktop Entry" \
 		"Comment=Create a desktop entry for a Windows application" \
 		"Exec=env umu-app %f --gui" \
 		"Type=Application" \
@@ -142,5 +142,5 @@ info "  Launcher   : $DESKTOP_LAUNCH"
 info "  Application: $DESKTOP_APP"
 
 if command -v notify-send >/dev/null 2>&1; then
-	notify-send -i "applications-games" -a "UMU App" "Installation complete" "Use 'UMU Application' to create desktop entries for Windows apps."
+	notify-send -i "applications-games" -a "UMU App" "Installation complete" "Use 'Create Desktop Entry' to create desktop entries for Windows apps."
 fi

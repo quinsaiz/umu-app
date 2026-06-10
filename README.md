@@ -1,6 +1,7 @@
 # UMU App
 
-A utility for creating native Linux application launchers for Windows programs using **UMU Launcher**, **Wine**, and **GE-Proton**.
+A utility for creating native Linux application launchers for Windows programs using **UMU Launcher**, **Wine**, and *
+*GE-Proton**.
 
 UMU App generates:
 
@@ -8,7 +9,8 @@ UMU App generates:
 - A desktop launcher (`.desktop`)
 - An application icon (automatically extracted or user-provided)
 
-The goal is to make Windows applications launched through UMU behave like native Linux applications that appear in your desktop environment's application menu.
+The goal is to make Windows applications launched through UMU behave like native Linux applications that appear in your
+desktop environment's application menu.
 
 ## Features
 
@@ -144,24 +146,33 @@ The graphical interface allows you to configure:
 ### Basic
 
 ```bash
+# Create a desktop shortcut
 umu-app /path/to/application.exe
+
+# Run immediately without creating a shortcut
+umu-app run /path/to/application.exe
+
+# Run winetricks in a prefix
+umu-app winetricks dxvk vcrun2019 --prefix=~/Games/MyGame/prefix
 ```
 
 ### Available Options
 
-| Short | Long              | Description                                |
-|-------|-------------------|--------------------------------------------|
-|       | `--gui`           | Launch graphical interface                 |
-| `-u`  | `--update-proton` | Download the latest GE-Proton and exit     |
-| `-n`  | `--name`          | Application name                           |
-| `-i`  | `--icon`          | Custom icon path                           |
-| `-w`  | `--prefix`        | Wine prefix path                           |
-| `-p`  | `--proton`        | Proton directory or Proton name            |
-| `-g`  | `--gameid`        | UMU Game ID                                |
-| `-s`  | `--store`         | Store identifier                           |
-| `-a`  | `--launch_args`   | Arguments passed to the Windows executable |
-| `-e`  | `--exec`          | Additional commands before `umu-run`       |
-| `-h`  | `--help`          | Show help message                          |
+| Short | Long              | Description                                            |
+|-------|-------------------|--------------------------------------------------------|
+|       | `run`             | Run application immediately without creating shortcuts |
+|       | `winetricks`      | Run winetricks in the specified or default prefix      |
+|       | `--gui`           | Launch graphical interface                             |
+| `-u`  | `--update-proton` | Download the latest GE-Proton and exit                 |
+| `-n`  | `--name`          | Application name                                       |
+| `-i`  | `--icon`          | Custom icon path                                       |
+| `-w`  | `--prefix`        | Wine prefix path                                       |
+| `-p`  | `--proton`        | Proton directory or Proton name                        |
+| `-g`  | `--gameid`        | UMU Game ID                                            |
+| `-s`  | `--store`         | Store identifier                                       |
+| `-a`  | `--launch_args`   | Arguments passed to the Windows executable             |
+| `-e`  | `--exec`          | Additional commands before `umu-run`                   |
+| `-h`  | `--help`          | Show help message                                      |
 
 ### Example
 
@@ -213,12 +224,12 @@ Example:
 
 ```ini
 [Desktop Entry]
-Name=Game Name
-Exec=env mangohud gamemode umu-run --config "/path/to/config.toml"
-Type=Application
-Terminal=false
-Categories=Games;Wine;
-Icon=/home/user/.local/share/icons/umu-app/game.png
+Name = Game Name
+Exec = env mangohud gamemode umu-run --config "/path/to/config.toml"
+Type = Application
+Terminal = false
+Categories = Games;Wine;
+Icon = /home/user/.local/share/icons/umu-app/game.png
 ```
 
 ### 3. Application Icon
@@ -253,7 +264,12 @@ You can always override automatic detection with:
 
 ## Desktop Integration
 
-The installer creates two desktop entries.
+The installer creates two desktop entries:
+
+- **`umu-launch.desktop`** — registered as a handler for `.exe`, `.msi`, `.bat`, `.cmd` files. Allows you to right-click
+  a Windows executable in your file manager and launch it immediately via `umu-app run`.
+- **`umu-app.desktop`** — appears in your application menu as "Create a desktop entry". Opens the GUI to generate a
+  shortcut for a Windows application.
 
 ## License
 
